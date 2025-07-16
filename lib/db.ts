@@ -122,23 +122,38 @@ export async function getVoteSummary(date: string) {
     SELECT 
       attendance,
       COUNT(*) as count,
-      ARRAY_AGG(user_name ORDER BY created_at) as users
+      ARRAY_AGG(user_name ORDER BY created_at) as users,
+      ARRAY_AGG(min_players ORDER BY created_at) as min_players_list
     FROM votes 
     WHERE vote_date = ${date}
     GROUP BY attendance
   `;
   
   const summary = {
-    yes: { count: 0, users: [] as string[] },
-    no: { count: 0, users: [] as string[] },
-    maybe: { count: 0, users: [] as string[] }
+    yes: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> },
+    no: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> },
+    maybe: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> }
   };
   
   result.rows.forEach((row) => {
-    const typedRow = row as { attendance: 'yes' | 'no' | 'maybe'; count: string; users: string[] };
+    const typedRow = row as { 
+      attendance: 'yes' | 'no' | 'maybe'; 
+      count: string; 
+      users: string[]; 
+      min_players_list: string[] 
+    };
+    
+    const users = typedRow.users || [];
+    const minPlayersList = typedRow.min_players_list || [];
+    const usersWithMinPlayers = users.map((name, index) => ({
+      name,
+      minPlayers: minPlayersList[index] || 'any'
+    }));
+    
     summary[typedRow.attendance] = {
       count: parseInt(typedRow.count),
-      users: typedRow.users || []
+      users: users,
+      usersWithMinPlayers: usersWithMinPlayers
     };
   });
   

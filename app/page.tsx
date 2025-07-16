@@ -22,9 +22,9 @@ interface Comment {
 }
 
 interface VoteSummary {
-  yes: { count: number; users: string[] };
-  no: { count: number; users: string[] };
-  maybe: { count: number; users: string[] };
+  yes: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
+  no: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
+  maybe: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
 }
 
 export default function Home() {
@@ -33,9 +33,9 @@ export default function Home() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [summary, setSummary] = useState<VoteSummary>({
-    yes: { count: 0, users: [] },
-    no: { count: 0, users: [] },
-    maybe: { count: 0, users: [] }
+    yes: { count: 0, users: [], usersWithMinPlayers: [] },
+    no: { count: 0, users: [], usersWithMinPlayers: [] },
+    maybe: { count: 0, users: [], usersWithMinPlayers: [] }
   });
   const [userName, setUserName] = useState('');
   const [userVote, setUserVote] = useState<{attendance: 'yes' | 'no' | 'maybe', minPlayers: 'any' | '6' | '8'} | null>(null);
@@ -234,7 +234,7 @@ export default function Home() {
               disabled={currentDateIndex === 0}
               className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-green-700"
             >
-              ← Předchozí středa
+              ← <span className="hidden md:inline">Předchozí středa</span>
             </button>
             
             <div className="text-center">
@@ -254,7 +254,7 @@ export default function Home() {
               disabled={currentDateIndex === wednesdays.length - 1}
               className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-green-700"
             >
-              Další středa →
+              <span className="hidden md:inline">Další středa</span> →
             </button>
           </div>
 
@@ -292,7 +292,7 @@ export default function Home() {
               </strong>
               {userVote.attendance !== 'no' && (
                 <>, minimum hráčů: <strong>
-                  {userVote.minPlayers === 'any' ? 'jakýkoliv' : userVote.minPlayers}
+                  {userVote.minPlayers === 'any' ? 'bez minima' : userVote.minPlayers}
                 </strong></>
               )}
             </div>
@@ -310,7 +310,7 @@ export default function Home() {
                     disabled={loading}
                     className="w-full p-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
                   >
-                    Min. {minPlayers === 'any' ? 'jakýkoliv' : minPlayers} hráčů
+                    Min. {minPlayers === 'any' ? 'bez minima' : minPlayers} hráčů
                   </button>
                 ))}
               </div>
@@ -327,7 +327,7 @@ export default function Home() {
                     disabled={loading}
                     className="w-full p-2 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:bg-gray-300"
                   >
-                    Min. {minPlayers === 'any' ? 'jakýkoliv' : minPlayers} hráčů
+                    Min. {minPlayers === 'any' ? 'bez minima' : minPlayers} hráčů
                   </button>
                 ))}
               </div>
@@ -366,9 +366,16 @@ export default function Home() {
             <div className="text-center p-3 bg-green-50 rounded-lg">
               <div className="text-lg font-semibold text-green-700">✅ Přijdou</div>
               <div className="text-2xl font-bold text-green-800">{summary.yes.count}</div>
-              {summary.yes.users.length > 0 && (
+              {summary.yes.usersWithMinPlayers.length > 0 && (
                 <div className="text-sm text-gray-600 mt-1">
-                  {summary.yes.users.join(', ')}
+                  {summary.yes.usersWithMinPlayers.map((user, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span>{user.name}</span>
+                      <span className="text-xs bg-green-100 px-2 py-1 rounded ml-2">
+                        {user.minPlayers === 'any' ? 'bez minima' : `min. ${user.minPlayers}`}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -376,9 +383,16 @@ export default function Home() {
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-lg font-semibold text-yellow-700">🤔 Možná</div>
               <div className="text-2xl font-bold text-yellow-800">{summary.maybe.count}</div>
-              {summary.maybe.users.length > 0 && (
+              {summary.maybe.usersWithMinPlayers.length > 0 && (
                 <div className="text-sm text-gray-600 mt-1">
-                  {summary.maybe.users.join(', ')}
+                  {summary.maybe.usersWithMinPlayers.map((user, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span>{user.name}</span>
+                      <span className="text-xs bg-yellow-100 px-2 py-1 rounded ml-2">
+                        {user.minPlayers === 'any' ? 'bez minima' : `min. ${user.minPlayers}`}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
