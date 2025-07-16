@@ -213,19 +213,33 @@ export default function Home() {
 
   const totalPlayers = summary.yes.count + summary.maybe.count;
   const enoughPlayers = totalPlayers >= 6;
+  const isPastDate = isDateInPast(currentDate);
 
   if (!currentDate) {
     return <div className="min-h-screen flex items-center justify-center">Načítání...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-green-50 py-8 px-4">
+    <div className={`min-h-screen py-8 px-4 ${isPastDate ? 'bg-gray-100' : 'bg-green-50'}`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className={`rounded-lg shadow-md p-6 mb-6 ${isPastDate ? 'bg-gray-50 border-2 border-gray-300' : 'bg-white'}`}>
           <h1 className="text-3xl font-bold text-center text-green-800 mb-4">
             ⚽ Hlasování Gutovka ⚽
           </h1>
+          
+          {/* Past Date Banner */}
+          {isPastDate && (
+            <div className="mb-4 p-3 bg-gray-200 border-l-4 border-gray-500 rounded-r-lg">
+              <div className="flex items-center">
+                <span className="text-2xl mr-2">🕰️</span>
+                <div>
+                  <div className="font-semibold text-gray-800">Historická data</div>
+                  <div className="text-sm text-gray-600">Prohlížíte si výsledky z minulosti</div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Date Navigation */}
           <div className="flex items-center justify-between mb-6">
@@ -238,14 +252,20 @@ export default function Home() {
             </button>
             
             <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-800">
+              <h2 className={`text-xl font-semibold ${isPastDate ? 'text-gray-700' : 'text-gray-800'}`}>
                 {formatDateCzech(currentDate)}
               </h2>
               {isDateToday(currentDate) && (
-                <span className="text-sm text-green-600 font-medium">Dnes</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                  <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                  Dnes
+                </span>
               )}
-              {isDateInPast(currentDate) && (
-                <span className="text-sm text-gray-500">Minulost</span>
+              {isPastDate && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 border border-gray-300">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
+                  Minulost
+                </span>
               )}
             </div>
             
@@ -281,11 +301,18 @@ export default function Home() {
         </div>
 
         {/* Voting Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Hlasování</h3>
+        <div className={`rounded-lg shadow-md p-6 mb-6 ${isPastDate ? 'bg-gray-50 border-2 border-gray-300' : 'bg-white'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Hlasování</h3>
+            {isPastDate && (
+              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                📊 Výsledky
+              </span>
+            )}
+          </div>
           
           {userVote && (
-            <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg">
+            <div className={`mb-4 p-3 border rounded-lg ${isPastDate ? 'bg-gray-100 border-gray-400 text-gray-700' : 'bg-blue-100 border-blue-400 text-blue-700'}`}>
               Váš hlas: <strong>
                 {userVote.attendance === 'yes' ? 'Přijdu' : 
                  userVote.attendance === 'no' ? 'Nepřijdu' : 'Možná přijdu'}
@@ -298,59 +325,74 @@ export default function Home() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            {/* Yes Vote */}
-            <div className="border border-green-300 rounded-lg p-4">
-              <h4 className="font-semibold text-green-700 mb-3">✅ Přijdu</h4>
-              <div className="space-y-2">
-                {['any', '6', '8'].map((minPlayers) => (
-                  <button
-                    key={minPlayers}
-                    onClick={() => handleVote('yes', minPlayers as 'any' | '6' | '8')}
-                    disabled={loading}
-                    className="w-full p-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
-                  >
-                    Min. {minPlayers === 'any' ? 'bez minima' : minPlayers} hráčů
-                  </button>
-                ))}
+          {!isPastDate ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {/* Yes Vote */}
+              <div className="border border-green-300 rounded-lg p-4">
+                <h4 className="font-semibold text-green-700 mb-3">✅ Přijdu</h4>
+                <div className="space-y-2">
+                  {['any', '6', '8'].map((minPlayers) => (
+                    <button
+                      key={minPlayers}
+                      onClick={() => handleVote('yes', minPlayers as 'any' | '6' | '8')}
+                      disabled={loading}
+                      className="w-full p-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
+                    >
+                      {minPlayers === 'any' ? 'Bez minima' : `Min. ${minPlayers} hráčů`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Maybe Vote */}
+              <div className="border border-yellow-300 rounded-lg p-4">
+                <h4 className="font-semibold text-yellow-700 mb-3">🤔 Možná přijdu</h4>
+                <div className="space-y-2">
+                  {['any', '6', '8'].map((minPlayers) => (
+                    <button
+                      key={minPlayers}
+                      onClick={() => handleVote('maybe', minPlayers as 'any' | '6' | '8')}
+                      disabled={loading}
+                      className="w-full p-2 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:bg-gray-300"
+                    >
+                      {minPlayers === 'any' ? 'Bez minima' : `Min. ${minPlayers} hráčů`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* No Vote */}
+              <div className="border border-red-300 rounded-lg p-4">
+                <h4 className="font-semibold text-red-700 mb-3">❌ Nepřijdu</h4>
+                <button
+                  onClick={() => handleVote('no', 'any')}
+                  disabled={loading}
+                  className="w-full p-3 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300"
+                >
+                  Nepřijdu
+                </button>
               </div>
             </div>
-
-            {/* Maybe Vote */}
-            <div className="border border-yellow-300 rounded-lg p-4">
-              <h4 className="font-semibold text-yellow-700 mb-3">🤔 Možná přijdu</h4>
-              <div className="space-y-2">
-                {['any', '6', '8'].map((minPlayers) => (
-                  <button
-                    key={minPlayers}
-                    onClick={() => handleVote('maybe', minPlayers as 'any' | '6' | '8')}
-                    disabled={loading}
-                    className="w-full p-2 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:bg-gray-300"
-                  >
-                    Min. {minPlayers === 'any' ? 'bez minima' : minPlayers} hráčů
-                  </button>
-                ))}
-              </div>
+          ) : (
+            <div className="text-center p-6 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg">
+              <span className="text-3xl mb-2 block">🔒</span>
+              <p className="text-gray-600 font-medium">Hlasování uzavřeno</p>
+              <p className="text-sm text-gray-500">Toto datum již proběhlo</p>
             </div>
-
-            {/* No Vote */}
-            <div className="border border-red-300 rounded-lg p-4">
-              <h4 className="font-semibold text-red-700 mb-3">❌ Nepřijdu</h4>
-              <button
-                onClick={() => handleVote('no', 'any')}
-                disabled={loading}
-                className="w-full p-3 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300"
-              >
-                Nepřijdu
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Summary */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Přehled účasti</h3>
-          
+        <div className={`rounded-lg shadow-md p-6 mb-6 ${isPastDate ? 'bg-gray-50 border-2 border-gray-300' : 'bg-white'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Přehled účasti</h3>
+            {isPastDate && (
+              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                📈 Konečné výsledky
+              </span>
+            )}
+          </div>
+
           <div className={`text-center p-4 rounded-lg mb-4 ${
             enoughPlayers ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
           }`}>
@@ -410,29 +452,42 @@ export default function Home() {
         </div>
 
         {/* Comments Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Komentáře</h3>
+        <div className={`rounded-lg shadow-md p-6 ${isPastDate ? 'bg-gray-50 border-2 border-gray-300' : 'bg-white'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Komentáře</h3>
+            {isPastDate && (
+              <span className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                💬 Archiv komentářů
+              </span>
+            )}
+          </div>
           
           {/* Add Comment */}
-          <div className="mb-6">
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Přidejte komentář..."
-                onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
-              />
-              <button
-                onClick={handleAddComment}
-                disabled={loading || !newComment.trim() || !userName.trim()}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300"
-              >
-                Přidat
-              </button>
+          {!isPastDate ? (
+            <div className="mb-6">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Přidejte komentář..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                />
+                <button
+                  onClick={handleAddComment}
+                  disabled={loading || !newComment.trim() || !userName.trim()}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300"
+                >
+                  Přidat
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mb-6 p-3 bg-gray-100 border border-gray-300 rounded-lg text-center">
+              <span className="text-gray-500 text-sm">Přidávání komentářů k historickým datům není možné</span>
+            </div>
+          )}
 
           {/* Comments List */}
           <div className="space-y-3">
@@ -440,7 +495,7 @@ export default function Home() {
               <p className="text-gray-500 text-center py-4">Zatím žádné komentáře</p>
             ) : (
               comments.map((comment) => (
-                <div key={comment.id} className="border-l-4 border-green-500 bg-gray-50 p-4 rounded-r-lg">
+                <div key={comment.id} className={`border-l-4 p-4 rounded-r-lg ${isPastDate ? 'border-gray-400 bg-gray-100' : 'border-green-500 bg-gray-50'}`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-semibold text-gray-800">{comment.user_name}</span>
                     <span className="text-sm text-gray-500">
