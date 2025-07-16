@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Všechna pole jsou povinná' }, { status: 400 });
     }
     
-    if (!['yes', 'no', 'maybe'].includes(attendance)) {
+    if (!['yes', 'no'].includes(attendance)) {
       return NextResponse.json({ error: 'Neplatná hodnota účasti' }, { status: 400 });
     }
     

@@ -4,7 +4,7 @@ export interface Vote {
   id: number;
   user_name: string;
   vote_date: string; // YYYY-MM-DD format
-  attendance: 'yes' | 'no' | 'maybe';
+  attendance: 'yes' | 'no';
   min_players: 'any' | '6' | '8';
   guests: number; // Number of guests the player is bringing
   created_at: string;
@@ -28,7 +28,7 @@ export async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         user_name VARCHAR(100) NOT NULL,
         vote_date DATE NOT NULL,
-        attendance VARCHAR(10) NOT NULL CHECK (attendance IN ('yes', 'no', 'maybe')),
+        attendance VARCHAR(10) NOT NULL CHECK (attendance IN ('yes', 'no')),
         min_players VARCHAR(10) NOT NULL CHECK (min_players IN ('any', '6', '8')),
         guests INTEGER DEFAULT 0 CHECK (guests >= 0 AND guests <= 10),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -94,7 +94,7 @@ export async function getCommentsForDate(date: string): Promise<Comment[]> {
 export async function upsertVote(
   userName: string,
   voteDate: string,
-  attendance: 'yes' | 'no' | 'maybe',
+  attendance: 'yes' | 'no',
   minPlayers: 'any' | '6' | '8',
   guests: number = 0
 ): Promise<Vote> {
@@ -132,7 +132,7 @@ export async function getVoteSummary(date: string) {
     SELECT 
       attendance,
       COUNT(*) as count,
-      SUM(CASE WHEN attendance IN ('yes', 'maybe') THEN 1 + guests ELSE 0 END) as total_players,
+      SUM(CASE WHEN attendance = 'yes' THEN 1 + guests ELSE 0 END) as total_players,
       ARRAY_AGG(user_name ORDER BY created_at) as users,
       ARRAY_AGG(min_players ORDER BY created_at) as min_players_list,
       ARRAY_AGG(guests ORDER BY created_at) as guests_list
@@ -143,13 +143,12 @@ export async function getVoteSummary(date: string) {
   
   const summary = {
     yes: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> },
-    no: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> },
-    maybe: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> }
+    no: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> }
   };
   
   result.rows.forEach((row) => {
     const typedRow = row as { 
-      attendance: 'yes' | 'no' | 'maybe'; 
+      attendance: 'yes' | 'no'; 
       count: string; 
       total_players: string;
       users: string[]; 
@@ -157,21 +156,24 @@ export async function getVoteSummary(date: string) {
       guests_list: number[];
     };
     
-    const users = typedRow.users || [];
-    const minPlayersList = typedRow.min_players_list || [];
-    const guestsList = typedRow.guests_list || [];
-    const usersWithMinPlayers = users.map((name, index) => ({
-      name,
-      minPlayers: minPlayersList[index] || 'any',
-      guests: guestsList[index] || 0
-    }));
-    
-    summary[typedRow.attendance] = {
-      count: parseInt(typedRow.count),
-      totalPlayers: parseInt(typedRow.total_players) || 0,
-      users: users,
-      usersWithMinPlayers: usersWithMinPlayers
-    };
+    // Only process yes and no votes (skip any legacy maybe votes)
+    if (typedRow.attendance === 'yes' || typedRow.attendance === 'no') {
+      const users = typedRow.users || [];
+      const minPlayersList = typedRow.min_players_list || [];
+      const guestsList = typedRow.guests_list || [];
+      const usersWithMinPlayers = users.map((name, index) => ({
+        name,
+        minPlayers: minPlayersList[index] || 'any',
+        guests: guestsList[index] || 0
+      }));
+      
+      summary[typedRow.attendance] = {
+        count: parseInt(typedRow.count),
+        totalPlayers: parseInt(typedRow.total_players) || 0,
+        users: users,
+        usersWithMinPlayers: usersWithMinPlayers
+      };
+    }
   });
   
   return summary;

@@ -7,7 +7,7 @@ interface Vote {
   id: number;
   user_name: string;
   vote_date: string;
-  attendance: 'yes' | 'no' | 'maybe';
+  attendance: 'yes' | 'no';
   min_players: 'any' | '6' | '8';
   guests: number;
   created_at: string;
@@ -25,7 +25,6 @@ interface Comment {
 interface VoteSummary {
   yes: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
   no: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
-  maybe: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
 }
 
 export default function Home() {
@@ -35,11 +34,10 @@ export default function Home() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [summary, setSummary] = useState<VoteSummary>({
     yes: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] },
-    no: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] },
-    maybe: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] }
+    no: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] }
   });
   const [userName, setUserName] = useState('');
-  const [userVote, setUserVote] = useState<{attendance: 'yes' | 'no' | 'maybe', minPlayers: 'any' | '6' | '8', guests: number} | null>(null);
+  const [userVote, setUserVote] = useState<{attendance: 'yes' | 'no', minPlayers: 'any' | '6' | '8', guests: number} | null>(null);
   const [guestCount, setGuestCount] = useState(0);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -129,7 +127,7 @@ export default function Home() {
     localStorage.setItem('footballVotingUsername', name);
   };
 
-  const handleVote = async (attendance: 'yes' | 'no' | 'maybe', minPlayers: 'any' | '6' | '8') => {
+  const handleVote = async (attendance: 'yes' | 'no', minPlayers: 'any' | '6' | '8') => {
     if (!userName.trim()) {
       setError('Zadejte své jméno');
       return;
@@ -217,7 +215,7 @@ export default function Home() {
     }
   };
 
-  const totalPlayers = summary.yes.totalPlayers + summary.maybe.totalPlayers;
+  const totalPlayers = summary.yes.totalPlayers;
   const enoughPlayers = totalPlayers >= 6;
   const isPastDate = isDateInPast(currentDate);
 
@@ -320,8 +318,7 @@ export default function Home() {
           {userVote && (
             <div className={`mb-4 p-3 border rounded-lg ${isPastDate ? 'bg-gray-100 border-gray-400 text-gray-700' : 'bg-blue-100 border-blue-400 text-blue-700'}`}>
               Váš hlas: <strong>
-                {userVote.attendance === 'yes' ? 'Přijdu' : 
-                 userVote.attendance === 'no' ? 'Nepřijdu' : 'Možná přijdu'}
+                {userVote.attendance === 'yes' ? 'Přijdu' : 'Nepřijdu'}
               </strong>
               {userVote.attendance !== 'no' && (
                 <>
@@ -367,7 +364,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Yes Vote */}
               <div className="border border-green-300 rounded-lg p-4">
                 <h4 className="font-semibold text-green-700 mb-3">✅ Přijdu</h4>
@@ -378,23 +375,6 @@ export default function Home() {
                       onClick={() => handleVote('yes', minPlayers as 'any' | '6' | '8')}
                       disabled={loading}
                       className="w-full p-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
-                    >
-                      {minPlayers === 'any' ? 'Bez minima' : `Min. ${minPlayers} hráčů`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Maybe Vote */}
-              <div className="border border-yellow-300 rounded-lg p-4">
-                <h4 className="font-semibold text-yellow-700 mb-3">🤔 Možná přijdu</h4>
-                <div className="space-y-2">
-                  {['any', '6', '8'].map((minPlayers) => (
-                    <button
-                      key={minPlayers}
-                      onClick={() => handleVote('maybe', minPlayers as 'any' | '6' | '8')}
-                      disabled={loading}
-                      className="w-full p-2 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:bg-gray-300"
                     >
                       {minPlayers === 'any' ? 'Bez minima' : `Min. ${minPlayers} hráčů`}
                     </button>
@@ -446,7 +426,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="text-center p-3 bg-green-50 rounded-lg">
               <div className="text-lg font-semibold text-green-700">✅ Přijdou</div>
               <div className="text-2xl font-bold text-green-800">{summary.yes.count}</div>
@@ -456,23 +436,6 @@ export default function Home() {
                     <div key={index} className="flex justify-between items-center">
                       <span>{user.name}{user.guests > 0 && ` (+${user.guests})`}</span>
                       <span className="text-xs bg-green-100 px-2 py-1 rounded ml-2">
-                        {user.minPlayers === 'any' ? 'bez minima' : `min. ${user.minPlayers}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="text-lg font-semibold text-yellow-700">🤔 Možná</div>
-              <div className="text-2xl font-bold text-yellow-800">{summary.maybe.count}</div>
-              {summary.maybe.usersWithMinPlayers.length > 0 && (
-                <div className="text-sm text-gray-600 mt-1">
-                  {summary.maybe.usersWithMinPlayers.map((user, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span>{user.name}</span>
-                      <span className="text-xs bg-yellow-100 px-2 py-1 rounded ml-2">
                         {user.minPlayers === 'any' ? 'bez minima' : `min. ${user.minPlayers}`}
                       </span>
                     </div>
