@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     await ensureDbInitialized();
     
     const body = await request.json();
-    const { userName, voteDate, attendance, minPlayers } = body;
+    const { userName, voteDate, attendance, minPlayers, guests = 0 } = body;
     
     if (!userName || !voteDate || !attendance || !minPlayers) {
       return NextResponse.json({ error: 'Všechna pole jsou povinná' }, { status: 400 });
@@ -53,7 +53,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Neplatná hodnota minimálního počtu hráčů' }, { status: 400 });
     }
     
-    const vote = await upsertVote(userName, voteDate, attendance, minPlayers);
+    if (typeof guests !== 'number' || guests < 0 || guests > 10) {
+      return NextResponse.json({ error: 'Neplatný počet hostů (0-10)' }, { status: 400 });
+    }
+    
+    const vote = await upsertVote(userName, voteDate, attendance, minPlayers, guests);
     
     return NextResponse.json({ vote });
   } catch (error) {

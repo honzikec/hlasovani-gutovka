@@ -6,6 +6,7 @@ export interface Vote {
   vote_date: string; // YYYY-MM-DD format
   attendance: 'yes' | 'no' | 'maybe';
   min_players: 'any' | '6' | '8';
+  guests: number; // Number of guests the player is bringing
   created_at: string;
   updated_at: string;
 }
@@ -29,10 +30,17 @@ export async function initializeDatabase() {
         vote_date DATE NOT NULL,
         attendance VARCHAR(10) NOT NULL CHECK (attendance IN ('yes', 'no', 'maybe')),
         min_players VARCHAR(10) NOT NULL CHECK (min_players IN ('any', '6', '8')),
+        guests INTEGER DEFAULT 0 CHECK (guests >= 0 AND guests <= 10),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_name, vote_date)
       );
+    `;
+
+    // Add guests column if it doesn't exist (for existing databases)
+    await sql`
+      ALTER TABLE votes 
+      ADD COLUMN IF NOT EXISTS guests INTEGER DEFAULT 0 CHECK (guests >= 0 AND guests <= 10);
     `;
 
     // Create comments table
@@ -87,15 +95,17 @@ export async function upsertVote(
   userName: string,
   voteDate: string,
   attendance: 'yes' | 'no' | 'maybe',
-  minPlayers: 'any' | '6' | '8'
+  minPlayers: 'any' | '6' | '8',
+  guests: number = 0
 ): Promise<Vote> {
   const result = await sql`
-    INSERT INTO votes (user_name, vote_date, attendance, min_players, updated_at)
-    VALUES (${userName}, ${voteDate}, ${attendance}, ${minPlayers}, CURRENT_TIMESTAMP)
+    INSERT INTO votes (user_name, vote_date, attendance, min_players, guests, updated_at)
+    VALUES (${userName}, ${voteDate}, ${attendance}, ${minPlayers}, ${guests}, CURRENT_TIMESTAMP)
     ON CONFLICT (user_name, vote_date)
     DO UPDATE SET 
       attendance = EXCLUDED.attendance,
       min_players = EXCLUDED.min_players,
+      guests = EXCLUDED.guests,
       updated_at = CURRENT_TIMESTAMP
     RETURNING *
   `;
@@ -122,36 +132,43 @@ export async function getVoteSummary(date: string) {
     SELECT 
       attendance,
       COUNT(*) as count,
+      SUM(CASE WHEN attendance IN ('yes', 'maybe') THEN 1 + guests ELSE 0 END) as total_players,
       ARRAY_AGG(user_name ORDER BY created_at) as users,
-      ARRAY_AGG(min_players ORDER BY created_at) as min_players_list
+      ARRAY_AGG(min_players ORDER BY created_at) as min_players_list,
+      ARRAY_AGG(guests ORDER BY created_at) as guests_list
     FROM votes 
     WHERE vote_date = ${date}
     GROUP BY attendance
   `;
   
   const summary = {
-    yes: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> },
-    no: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> },
-    maybe: { count: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string}> }
+    yes: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> },
+    no: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> },
+    maybe: { count: 0, totalPlayers: 0, users: [] as string[], usersWithMinPlayers: [] as Array<{name: string, minPlayers: string, guests: number}> }
   };
   
   result.rows.forEach((row) => {
     const typedRow = row as { 
       attendance: 'yes' | 'no' | 'maybe'; 
       count: string; 
+      total_players: string;
       users: string[]; 
-      min_players_list: string[] 
+      min_players_list: string[];
+      guests_list: number[];
     };
     
     const users = typedRow.users || [];
     const minPlayersList = typedRow.min_players_list || [];
+    const guestsList = typedRow.guests_list || [];
     const usersWithMinPlayers = users.map((name, index) => ({
       name,
-      minPlayers: minPlayersList[index] || 'any'
+      minPlayers: minPlayersList[index] || 'any',
+      guests: guestsList[index] || 0
     }));
     
     summary[typedRow.attendance] = {
       count: parseInt(typedRow.count),
+      totalPlayers: parseInt(typedRow.total_players) || 0,
       users: users,
       usersWithMinPlayers: usersWithMinPlayers
     };

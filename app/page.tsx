@@ -9,6 +9,7 @@ interface Vote {
   vote_date: string;
   attendance: 'yes' | 'no' | 'maybe';
   min_players: 'any' | '6' | '8';
+  guests: number;
   created_at: string;
   updated_at: string;
 }
@@ -22,9 +23,9 @@ interface Comment {
 }
 
 interface VoteSummary {
-  yes: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
-  no: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
-  maybe: { count: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string}> };
+  yes: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
+  no: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
+  maybe: { count: number; totalPlayers: number; users: string[]; usersWithMinPlayers: Array<{name: string, minPlayers: string, guests: number}> };
 }
 
 export default function Home() {
@@ -33,12 +34,13 @@ export default function Home() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [summary, setSummary] = useState<VoteSummary>({
-    yes: { count: 0, users: [], usersWithMinPlayers: [] },
-    no: { count: 0, users: [], usersWithMinPlayers: [] },
-    maybe: { count: 0, users: [], usersWithMinPlayers: [] }
+    yes: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] },
+    no: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] },
+    maybe: { count: 0, totalPlayers: 0, users: [], usersWithMinPlayers: [] }
   });
   const [userName, setUserName] = useState('');
-  const [userVote, setUserVote] = useState<{attendance: 'yes' | 'no' | 'maybe', minPlayers: 'any' | '6' | '8'} | null>(null);
+  const [userVote, setUserVote] = useState<{attendance: 'yes' | 'no' | 'maybe', minPlayers: 'any' | '6' | '8', guests: number} | null>(null);
+  const [guestCount, setGuestCount] = useState(0);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -80,10 +82,13 @@ export default function Home() {
       if (myVote) {
         setUserVote({
           attendance: myVote.attendance,
-          minPlayers: myVote.min_players
+          minPlayers: myVote.min_players,
+          guests: myVote.guests
         });
+        setGuestCount(myVote.guests);
       } else {
         setUserVote(null);
+        setGuestCount(0);
       }
     }
   }, [votes, userName]);
@@ -143,7 +148,8 @@ export default function Home() {
           userName: userName.trim(),
           voteDate: currentDateString,
           attendance,
-          minPlayers
+          minPlayers,
+          guests: attendance === 'no' ? 0 : guestCount
         }),
       });
 
@@ -211,7 +217,7 @@ export default function Home() {
     }
   };
 
-  const totalPlayers = summary.yes.count + summary.maybe.count;
+  const totalPlayers = summary.yes.totalPlayers + summary.maybe.totalPlayers;
   const enoughPlayers = totalPlayers >= 6;
   const isPastDate = isDateInPast(currentDate);
 
@@ -318,15 +324,50 @@ export default function Home() {
                  userVote.attendance === 'no' ? 'Nepřijdu' : 'Možná přijdu'}
               </strong>
               {userVote.attendance !== 'no' && (
-                <>, minimum hráčů: <strong>
-                  {userVote.minPlayers === 'any' ? 'bez minima' : userVote.minPlayers}
-                </strong></>
+                <>
+                  , minimum hráčů: <strong>
+                    {userVote.minPlayers === 'any' ? 'bez minima' : userVote.minPlayers}
+                  </strong>
+                  {userVote.guests > 0 && (
+                    <>, hosté: <strong>+{userVote.guests}</strong></>
+                  )}
+                </>
               )}
             </div>
           )}
 
           {!isPastDate ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <>
+              {/* Guest Count Selector */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Počet hostů, které přivedu:
+                </label>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setGuestCount(Math.max(0, guestCount - 1))}
+                    className="w-8 h-8 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 disabled:opacity-50"
+                    disabled={guestCount === 0}
+                  >
+                    -
+                  </button>
+                  <span className="w-12 text-center font-semibold text-lg">
+                    {guestCount}
+                  </span>
+                  <button
+                    onClick={() => setGuestCount(Math.min(10, guestCount + 1))}
+                    className="w-8 h-8 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 disabled:opacity-50"
+                    disabled={guestCount === 10}
+                  >
+                    +
+                  </button>
+                  <span className="text-sm text-gray-500 ml-4">
+                    (maximum 10 hostů)
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               {/* Yes Vote */}
               <div className="border border-green-300 rounded-lg p-4">
                 <h4 className="font-semibold text-green-700 mb-3">✅ Přijdu</h4>
@@ -373,6 +414,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
+            </>
           ) : (
             <div className="text-center p-6 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg">
               <span className="text-3xl mb-2 block">🔒</span>
@@ -412,7 +454,7 @@ export default function Home() {
                 <div className="text-sm text-gray-600 mt-1">
                   {summary.yes.usersWithMinPlayers.map((user, index) => (
                     <div key={index} className="flex justify-between items-center">
-                      <span>{user.name}</span>
+                      <span>{user.name}{user.guests > 0 && ` (+${user.guests})`}</span>
                       <span className="text-xs bg-green-100 px-2 py-1 rounded ml-2">
                         {user.minPlayers === 'any' ? 'bez minima' : `min. ${user.minPlayers}`}
                       </span>
