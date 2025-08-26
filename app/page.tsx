@@ -216,7 +216,42 @@ export default function Home() {
   };
 
   const totalPlayers = summary.yes.totalPlayers;
-  const enoughPlayers = totalPlayers >= 6;
+  
+  // Calculate if there are enough players based on voters' minimum requirements
+  const calculateEnoughPlayers = () => {
+    // If no one is coming, definitely not enough players
+    if (totalPlayers === 0) return false;
+    
+    const specificMinVoters = summary.yes.usersWithMinPlayers.filter(user => user.minPlayers !== 'any');
+    
+    if (specificMinVoters.length === 0) {
+      return totalPlayers >= 4;
+    }
+    
+    // Get all unique minimum requirements, sorted from highest to lowest
+    const uniqueMinRequirements = [...new Set(
+      specificMinVoters.map(user => parseInt(user.minPlayers))
+    )].sort((a, b) => b - a);    
+
+    // For each minimum threshold (starting from highest), check if it's achievable
+    for (const minThreshold of uniqueMinRequirements) {
+      // Count voters who would be satisfied with this threshold
+      // (those with minPlayers <= minThreshold, plus those with "any")
+      const satisfiedVoters = summary.yes.usersWithMinPlayers.filter(user => 
+        user.minPlayers === 'any' || parseInt(user.minPlayers) <= minThreshold
+      ).length;
+      
+      // If we have enough total players and enough satisfied voters meet the threshold
+      if (satisfiedVoters >= minThreshold) {
+        return true;
+      }
+    }
+    
+    // If no specific threshold works return false
+    return false;
+  };
+  
+  const enoughPlayers = calculateEnoughPlayers();
   const isPastDate = isDateInPast(currentDate);
 
   if (!currentDate) {
