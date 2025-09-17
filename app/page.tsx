@@ -45,16 +45,17 @@ export default function Home() {
 
   // Initialize wednesdays and load saved username
   useEffect(() => {
-    const weds = getWednesdaysRange(8);
+    const weds = getWednesdaysRange(8).filter(wed => wed && wed instanceof Date && !isNaN(wed.getTime()));
     setWednesdays(weds);
     
     // Find current Wednesday or next Wednesday
     const today = new Date();
     const currentIndex = weds.findIndex(wed => {
       const wedDate = new Date(wed);
-      wedDate.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
-      return wedDate >= today;
+      // Use string comparison with Czech timezone to avoid timezone issues
+      const wedDateStr = wedDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+      const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+      return wedDateStr >= todayStr;
     });
     
     setCurrentDateIndex(currentIndex >= 0 ? currentIndex : 0);
@@ -92,7 +93,7 @@ export default function Home() {
   }, [votes, userName]);
 
   const currentDate = wednesdays[currentDateIndex];
-  const currentDateString = currentDate ? formatDate(currentDate) : '';
+  const currentDateString = currentDate && currentDate instanceof Date && !isNaN(currentDate.getTime()) ? formatDate(currentDate) : '';
 
   const loadVotesAndComments = async () => {
     if (!currentDate) return;

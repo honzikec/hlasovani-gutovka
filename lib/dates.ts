@@ -1,15 +1,37 @@
 // Utility functions for handling Wednesday dates
 
+// Get current date/time in Czech timezone
+export function getCurrentCzechTime(): Date {
+  const now = new Date();
+  // Get the current time in Prague timezone
+  const czechTimeString = now.toLocaleString('en-US', { timeZone: 'Europe/Prague' });
+  const czechTime = new Date(czechTimeString);
+  
+  // Fallback to current time if conversion fails
+  if (isNaN(czechTime.getTime())) {
+    return new Date();
+  }
+  
+  return czechTime;
+}
+
 export function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return ''; // Return empty string for invalid dates
+  }
+  return date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
 }
 
 export function formatDateCzech(date: Date): string {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return ''; // Return empty string for invalid dates
+  }
   return date.toLocaleDateString('cs-CZ', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Europe/Prague'
   });
 }
 
@@ -39,6 +61,8 @@ export function getPreviousWednesday(fromDate: Date = new Date()): Date {
 
 export function getCurrentWednesday(fromDate: Date = new Date()): Date {
   const date = new Date(fromDate);
+  // Normalize to start of day to avoid timezone issues
+  date.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
   const dayOfWeek = date.getDay();
   
   if (dayOfWeek === 3) { // Today is Wednesday
@@ -54,7 +78,9 @@ export function getCurrentWednesday(fromDate: Date = new Date()): Date {
 
 export function getWednesdaysRange(weeks: number = 8): Date[] {
   const wednesdays: Date[] = [];
-  const today = new Date();
+  const today = getCurrentCzechTime();
+  // Normalize to start of day to avoid timezone issues
+  today.setHours(12, 0, 0, 0);
   
   // Get past Wednesdays (half of the range)
   const pastWeeks = Math.floor(weeks / 2);
@@ -105,19 +131,25 @@ export function getMoreFutureWednesdays(fromDate: string, count: number = 4): Da
 }
 
 export function isDateInPast(date: Date): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const compareDate = new Date(date);
-  compareDate.setHours(0, 0, 0, 0);
-  return compareDate < today;
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return false; // Treat invalid dates as not in the past
+  }
+  
+  const today = getCurrentCzechTime();
+  // Use Czech timezone for comparison
+  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
+  const compareDateStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
+  return compareDateStr < todayStr;
 }
 
 export function isDateToday(date: Date): boolean {
-  const today = new Date();
-  const compareDate = new Date(date);
-  return (
-    today.getFullYear() === compareDate.getFullYear() &&
-    today.getMonth() === compareDate.getMonth() &&
-    today.getDate() === compareDate.getDate()
-  );
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return false; // Treat invalid dates as not today
+  }
+  
+  const today = getCurrentCzechTime();
+  // Use Czech timezone for comparison
+  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
+  const compareDateStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
+  return todayStr === compareDateStr;
 } 
