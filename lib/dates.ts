@@ -1,155 +1,154 @@
-// Utility functions for handling Wednesday dates
+// Utility functions for handling Wednesday dates in Europe/Prague timezone
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isValidDateString(dateStr: string): boolean {
+  if (!DATE_RE.test(dateStr)) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+/**
+ * Parses YYYY-MM-DD into a Date set to 12:00 UTC so timezone offsets never shift the calendar day.
+ */
+export function parseDateString(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+
+export function getTodayCzechString(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+}
 
 // Get current date/time in Czech timezone
 export function getCurrentCzechTime(): Date {
-  const now = new Date();
-  // Get the current time in Prague timezone
-  const czechTimeString = now.toLocaleString('en-US', { timeZone: 'Europe/Prague' });
-  const czechTime = new Date(czechTimeString);
-  
-  // Fallback to current time if conversion fails
-  if (isNaN(czechTime.getTime())) {
-    return new Date();
-  }
-  
-  return czechTime;
+  return parseDateString(getTodayCzechString());
 }
 
 export function formatDate(date: Date): string {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return ''; // Return empty string for invalid dates
+    return '';
   }
-  return date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
+  return date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
 }
 
 export function formatDateCzech(date: Date): string {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return ''; // Return empty string for invalid dates
+    return '';
   }
   return date.toLocaleDateString('cs-CZ', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: 'Europe/Prague'
+    timeZone: 'Europe/Prague',
   });
 }
 
-export function getNextWednesday(fromDate: Date = new Date()): Date {
-  const date = new Date(fromDate);
-  const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  const daysUntilWednesday = (3 - dayOfWeek + 7) % 7; // 3 = Wednesday
-  
-  // If today is Wednesday, get next Wednesday
-  const daysToAdd = daysUntilWednesday === 0 ? 7 : daysUntilWednesday;
-  
-  date.setDate(date.getDate() + daysToAdd);
-  return date;
+export function formatDateCzechFromString(dateStr: string): string {
+  if (!isValidDateString(dateStr)) return dateStr;
+  return formatDateCzech(parseDateString(dateStr));
 }
 
-export function getPreviousWednesday(fromDate: Date = new Date()): Date {
-  const date = new Date(fromDate);
-  const dayOfWeek = date.getDay();
-  const daysSinceWednesday = (dayOfWeek - 3 + 7) % 7;
-  
-  // If today is Wednesday, get previous Wednesday
-  const daysToSubtract = daysSinceWednesday === 0 ? 7 : daysSinceWednesday;
-  
-  date.setDate(date.getDate() - daysToSubtract);
-  return date;
+export function formatDateCzechShort(dateStr: string): string {
+  if (!isValidDateString(dateStr)) return dateStr;
+  return parseDateString(dateStr).toLocaleDateString('cs-CZ', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+    timeZone: 'Europe/Prague',
+  });
 }
 
-export function getCurrentWednesday(fromDate: Date = new Date()): Date {
-  const date = new Date(fromDate);
-  // Normalize to start of day to avoid timezone issues
-  date.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
-  const dayOfWeek = date.getDay();
-  
-  if (dayOfWeek === 3) { // Today is Wednesday
-    return date;
-  } else if (dayOfWeek < 3) { // Before Wednesday this week
-    const daysUntilWednesday = 3 - dayOfWeek;
-    date.setDate(date.getDate() + daysUntilWednesday);
-    return date;
-  } else { // After Wednesday this week
-    return getNextWednesday(date);
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const dt = parseDateString(dateStr);
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return formatDate(dt);
+}
+
+export function isWednesdayString(dateStr: string): boolean {
+  if (!isValidDateString(dateStr)) return false;
+  return parseDateString(dateStr).getUTCDay() === 3;
+}
+
+/**
+ * Given any YYYY-MM-DD date, returns the Wednesday of that same week (Mon-Sun)
+ * or the exact date if it's already a Wednesday.
+ */
+export function snapToWednesday(dateStr: string): string {
+  if (!isValidDateString(dateStr)) return getCurrentWednesdayString();
+  const dt = parseDateString(dateStr);
+  const day = dt.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  const diff = day === 0 ? -4 : 3 - day;
+  dt.setUTCDate(dt.getUTCDate() + diff);
+  return formatDate(dt);
+}
+
+export function getCurrentWednesdayString(): string {
+  const todayStr = getTodayCzechString();
+  const dt = parseDateString(todayStr);
+  const day = dt.getUTCDay(); // 0=Sun..6=Sat
+  const daysUntilWed = (3 - day + 7) % 7;
+  dt.setUTCDate(dt.getUTCDate() + daysUntilWed);
+  return formatDate(dt);
+}
+
+export function getWednesdaysRangeStrings(
+  pastWeeks: number = 4,
+  futureWeeks: number = 4
+): string[] {
+  const currentWed = getCurrentWednesdayString();
+  const dates: string[] = [];
+  for (let i = -pastWeeks; i < futureWeeks; i++) {
+    dates.push(addDaysToDateString(currentWed, i * 7));
   }
+  return dates;
 }
 
-export function getWednesdaysRange(weeks: number = 8): Date[] {
-  const wednesdays: Date[] = [];
-  const today = getCurrentCzechTime();
-  // Normalize to start of day to avoid timezone issues
-  today.setHours(12, 0, 0, 0);
-  
-  // Get past Wednesdays (half of the range)
-  const pastWeeks = Math.floor(weeks / 2);
-  const currentWednesday = getCurrentWednesday(today);
-  
-  // Go back to get past Wednesdays
-  for (let i = pastWeeks; i > 0; i--) {
-    const pastWednesday = new Date(currentWednesday);
-    pastWednesday.setDate(currentWednesday.getDate() - (i * 7));
-    wednesdays.push(pastWednesday);
+export function getWednesdaysBetween(startDate: string, endDate: string): string[] {
+  if (!isValidDateString(startDate) || !isValidDateString(endDate)) return [];
+  if (startDate > endDate) return [];
+
+  const dt = parseDateString(startDate);
+  const day = dt.getUTCDay();
+  const daysUntilWed = (3 - day + 7) % 7;
+  dt.setUTCDate(dt.getUTCDate() + daysUntilWed);
+
+  const result: string[] = [];
+  let cursor = formatDate(dt);
+  // Guard against accidental massive ranges (max ~20 years)
+  let safety = 0;
+  while (cursor <= endDate && safety < 1100) {
+    result.push(cursor);
+    dt.setUTCDate(dt.getUTCDate() + 7);
+    cursor = formatDate(dt);
+    safety++;
   }
-  
-  // Add current and future Wednesdays
-  const futureWeeks = weeks - pastWeeks;
-  for (let i = 0; i < futureWeeks; i++) {
-    const futureWednesday = new Date(currentWednesday);
-    futureWednesday.setDate(currentWednesday.getDate() + (i * 7));
-    wednesdays.push(futureWednesday);
-  }
-  
-  return wednesdays;
+  return result;
 }
 
-export function getMorePastWednesdays(fromDate: string, count: number = 4): Date[] {
-  const date = new Date(fromDate);
-  const wednesdays: Date[] = [];
-  
-  for (let i = 1; i <= count; i++) {
-    const pastWednesday = new Date(date);
-    pastWednesday.setDate(date.getDate() - (i * 7));
-    wednesdays.unshift(pastWednesday); // Add to beginning
-  }
-  
-  return wednesdays;
+export function isDateStringInPast(dateStr: string): boolean {
+  if (!isValidDateString(dateStr)) return false;
+  return dateStr < getTodayCzechString();
 }
 
-export function getMoreFutureWednesdays(fromDate: string, count: number = 4): Date[] {
-  const date = new Date(fromDate);
-  const wednesdays: Date[] = [];
-  
-  for (let i = 1; i <= count; i++) {
-    const futureWednesday = new Date(date);
-    futureWednesday.setDate(date.getDate() + (i * 7));
-    wednesdays.push(futureWednesday);
-  }
-  
-  return wednesdays;
+export function isDateStringToday(dateStr: string): boolean {
+  if (!isValidDateString(dateStr)) return false;
+  return dateStr === getTodayCzechString();
 }
 
+// Legacy Date-based helpers kept for compatibility
 export function isDateInPast(date: Date): boolean {
-  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return false; // Treat invalid dates as not in the past
-  }
-  
-  const today = getCurrentCzechTime();
-  // Use Czech timezone for comparison
-  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
-  const compareDateStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
-  return compareDateStr < todayStr;
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return false;
+  return formatDate(date) < getTodayCzechString();
 }
 
 export function isDateToday(date: Date): boolean {
-  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-    return false; // Treat invalid dates as not today
-  }
-  
-  const today = getCurrentCzechTime();
-  // Use Czech timezone for comparison
-  const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
-  const compareDateStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' }); // YYYY-MM-DD format in Czech timezone
-  return todayStr === compareDateStr;
-} 
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return false;
+  return formatDate(date) === getTodayCzechString();
+}
